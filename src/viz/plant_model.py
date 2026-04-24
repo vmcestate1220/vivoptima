@@ -28,17 +28,39 @@ def _vp():
 
 
 ISOFORM_COLORS_RGB: dict[str, tuple[float, float, float]] = {
-    "GLN1-2": (0.15, 0.75, 0.25),   # green
-    "GLN1-3": (0.15, 0.35, 0.85),   # blue
+    "GLN1-2": (0.15, 0.75, 0.25),   # green  -- cytosolic, mature leaves
+    "GLN1-3": (0.15, 0.35, 0.85),   # blue   -- cytosolic, young tissue / stress
+    "GLN2":   (0.95, 0.55, 0.10),   # amber  -- plastidic, photorespiration
 }
 
-# Canonical vascular nodes per isoform, derived from known expression
-# patterns: GLN1-2 is enriched in mature leaves and phloem companion
-# cells; GLN1-3 is enriched in young leaves / shoot apex under N stress.
-# Coordinates are scene-space (arbitrary, stem runs up +y).
-NODE_POSITIONS: dict[str, list[tuple[float, float, float]]] = {
+# Canonical sites per isoform.
+#   Cytosolic GS1 isoforms live along the vascular system (stem + phloem
+#   companion cells), so they map to stem-axis nodes. GLN1-2 is enriched
+#   in mature tissue (lower stem), GLN1-3 in young tissue / shoot apex.
+#
+#   Plastidic GS2 lives in chloroplasts inside mesophyll cells, so it
+#   is rendered at multiple scattered points across each leaf surface
+#   rather than at a single stem node. These are filled in at render
+#   time from the leaf geometry (see PlantModel._leaf_chloroplast_sites).
+VASCULAR_NODES: dict[str, list[tuple[float, float, float]]] = {
     "GLN1-2": [(0.0, 1.0, 0.0), (0.0, 2.0, 0.0)],
     "GLN1-3": [(0.0, 3.0, 0.0), (0.0, 3.8, 0.0)],
+}
+
+# How many chloroplast glyphs to scatter per leaf for GS2. One is
+# enough to mark the isoform's presence in every leaf; more reads as
+# visual noise because each glyph is a full 430-residue CA curve.
+CHLOROPLASTS_PER_LEAF = 1
+
+# Per-isoform render spec overrides. Plastidic glyphs sit *inside* the
+# leaf ellipsoids (which are only ~0.04 m tall), so they need a much
+# smaller scale and thinner backbone than vascular stem-node glyphs.
+ISOFORM_SPEC_OVERRIDES: dict[str, dict] = {
+    "GLN2": {
+        "protein_scale": 0.006,
+        "backbone_radius": 0.008,
+        "active_site_radius": 0.025,
+    },
 }
 
 
@@ -77,9 +99,12 @@ class PlantModel:
         vp = self.vp
         # (y, radial_size) pairs, roughly phyllotactic.
         levels = [(0.8, 0.55), (1.8, 0.75), (2.8, 0.65), (3.6, 0.45)]
-        self.leaves = []
+        self.leaves: list = []
+        self._leaf_frames: list[tuple[tuple[float, float, float],
+                                      tuple[float, float, float],
+                                      float]] = []
         for y, size in levels:
-            for k, angle in enumerate(np.linspace(0, 2 * np.pi, 4, endpoint=False)):
+            for angle in np.linspace(0, 2 * np.pi, 4, endpoint=False):
                 direction = vp.vector(np.cos(angle), 0.0, np.sin(angle))
                 mid = vp.vector(0, y, 0) + direction * (size * 0.5)
                 self.leaves.append(
@@ -90,6 +115,30 @@ class PlantModel:
                         color=vp.vector(0.35, 0.72, 0.32),
                     )
                 )
+                self._leaf_frames.append(
+                    ((mid.x, mid.y, mid.z),
+                     (direction.x, direction.y, direction.z),
+                     size)
+                )
+
+    def _leaf_chloroplast_sites(self) -> list[tuple[float, float, float]]:
+        """Scatter CHLOROPLASTS_PER_LEAF points across each leaf surface."""
+        sites: list[tuple[float, float, float]] = []
+        rng = np.random.default_rng(seed=42)  # deterministic placement
+        for (mid, axis, size) in self._leaf_frames:
+            mid_v = np.array(mid)
+            axis_v = np.array(axis)
+            # Build an in-plane perpendicular for width scatter
+            perp = np.cross(axis_v, np.array([0.0, 1.0, 0.0]))
+            if np.linalg.norm(perp) < 1e-6:
+                perp = np.array([1.0, 0.0, 0.0])
+            perp = perp / np.linalg.norm(perp)
+            for _ in range(CHLOROPLASTS_PER_LEAF):
+                u = rng.uniform(-0.4, 0.4) * size        # along leaf axis
+                v = rng.uniform(-0.15, 0.15) * size      # across leaf
+                p = mid_v + axis_v * u + perp * v
+                sites.append((float(p[0]), float(p[1]), float(p[2])))
+        return sites
 
     def attach_protein(
         self,
@@ -136,6 +185,19 @@ class PlantModel:
         self._nodes_drawn.append((header.gene_symbol, origin))
 
 
+def _target_nodes(model: PlantModel, header: MetadataHeader) \
+        -> list[tuple[float, float, float]]:
+    """Pick rendering positions for one isoform based on compartment.
+
+    Cytosolic isoforms get the vascular stem nodes mapped by gene
+    symbol. Plastidic isoforms get scattered across leaf surfaces
+    (one glyph per chloroplast site).
+    """
+    if header.compartment == "plastid":
+        return model._leaf_chloroplast_sites()
+    return VASCULAR_NODES.get(header.gene_symbol, [(0.0, 2.0, 0.0)])
+
+
 def build_demo(
     pdb_dir: str | Path = "data/pdb/arabidopsis",
 ) -> PlantModel:
@@ -145,9 +207,9 @@ def build_demo(
     for pdb in sorted(pdb_dir.glob("AF-*.pdb")):
         parser = GSMonomerParser(pdb)
         _coords, ca_trace, header = parser.parse()
-        nodes = NODE_POSITIONS.get(header.gene_symbol, [(0.0, 2.0, 0.0)])
-        for node in nodes:
-            model.attach_protein(header, ca_trace, node)
+        spec = RenderSpec(**ISOFORM_SPEC_OVERRIDES.get(header.gene_symbol, {}))
+        for node in _target_nodes(model, header):
+            model.attach_protein(header, ca_trace, node, spec=spec)
     return model
 
 

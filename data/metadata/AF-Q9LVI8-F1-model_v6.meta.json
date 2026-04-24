@@ -8,7 +8,7 @@
   "modality": "AF",
   "sop_class_uid": "2.25.322751313491866463159830711263384060307",
   "sop_instance_uid": "2.25.5170488357000979713493622051508760972",
-  "frame_of_reference_uid": "2.25.68754207551752173899399511237715583830",
+  "frame_of_reference_uid": "2.25.182212467162743191879646782087286720512",
   "manufacturer": "DeepMind / EBI AlphaFold DB",
   "software_version": "AlphaFold Monomer v2.0 (model v6)",
   "structure_set_label": "GLN1-3 catalytic pocket",
@@ -189,5 +189,6 @@
   "source_file": "/Users/laptop-h9y2/projects/science/vivoptima/data/pdb/arabidopsis/AF-Q9LVI8-F1-model_v6.pdb",
   "uniprot_accession": "Q9LVI8",
   "gene_symbol": "GLN1-3",
-  "locus_tag": "AT3G17820"
+  "locus_tag": "AT3G17820",
+  "compartment": "cytosol"
 }
