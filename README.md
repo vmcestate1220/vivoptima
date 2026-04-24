@@ -7,7 +7,7 @@
 [![DICOM](https://img.shields.io/badge/DICOM-analog-9cf.svg)](https://www.dicomstandard.org/)
 [![Status](https://img.shields.io/badge/status-early--scaffold-lightgrey.svg)]()
 
-## Linked Contents
+## Contents
 
 - [Overview](#overview)
 - [Setup](#setup)
