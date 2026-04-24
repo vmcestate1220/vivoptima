@@ -1,70 +1,82 @@
- # Vivoptima
+# Vivoptima
 
-  ## Linked Contents
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
+[![Biopython](https://img.shields.io/badge/Biopython-1.87-green.svg)](https://biopython.org/)
+[![VPython](https://img.shields.io/badge/VPython-7.6-orange.svg)](https://vpython.org/)
+[![AlphaFold DB](https://img.shields.io/badge/AlphaFold-DB-5555ff.svg)](https://alphafold.ebi.ac.uk/)
+[![DICOM](https://img.shields.io/badge/DICOM-analog-9cf.svg)](https://www.dicomstandard.org/)
+[![Status](https://img.shields.io/badge/status-early--scaffold-lightgrey.svg)]()
 
-  - Overview (#overview)
-  - Setup (#setup)
-  - Quick Start (#quick-start)
-  - Usage (#usage)
-  - Dataset (#dataset)
-  - References (#references)
-  - Author (#author)
+## Linked Contents
 
-  ## Overview
+- [Overview](#overview)
+- [Setup](#setup)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+- [Dataset](#dataset)
+- [References](#references)
+- [Author](#author)
 
-  Vivoptima is a 3D "Nitrogen Digital Twin" platform designed to address the global fertilizer runoff crisis through
-  "Clinical Agronomy." By mapping AlphaFold 3D structures of Glutamine Synthetase (GS) monomers, specifically the cytosolic
-  GLN1.2 and GLN1.3 isoenzymes, onto a virtual model of Arabidopsis thaliana, Vivoptima predicts nitrogen requirements with
-  molecular precision.
+## Overview
 
-  The project leverages medical imaging logic (pydicom) and real-time 3D visualization (vpython) to create a Digital Twin
-  Metadata Standard. This standard aims to bridge the gap between proteomic research and field-scale agricultural resource
-  management, providing a framework for ASTM International committee consideration.
+Vivoptima is a 3D "Nitrogen Digital Twin" platform designed to address the global fertilizer runoff crisis through "Clinical Agronomy." By mapping AlphaFold 3D structures of Glutamine Synthetase (GS) monomers, specifically the cytosolic GLN1.2 and GLN1.3 isoenzymes, onto a virtual model of Arabidopsis thaliana, Vivoptima predicts nitrogen requirements with molecular precision.
 
-  ## Setup
+The project leverages medical imaging logic (pydicom) and real-time 3D visualization (vpython) to create a Digital Twin Metadata Standard. This standard aims to bridge the gap between proteomic research and field-scale agricultural resource management, providing a framework for ASTM International committee consideration.
 
-  Ensure you have Python 3.11+ installed. It is recommended to use the provided virtual environment configuration.
+## Setup
 
-  # Clone the repository
-  git clone https://github.com/your-username/vivoptima.git
-  cd vivoptima
+This project targets **Python 3.13**. A virtual environment ships at `./vivoptima/` (its contents are excluded from VCS by the venv's own `.gitignore`); most contributors will prefer a fresh venv built from `requirements.txt`.
 
-  # Initialize environment
-  python3 -m venv venv
-  source venv/bin/activate
+```bash
+git clone https://github.com/vmcestate1220/vivoptima.git
+cd vivoptima
 
-  # Install dependencies
-  pip install pydicom vpython biopython numpy pandas
+python3.13 -m venv .venv
+source .venv/bin/activate
 
-  ## Quick Start
+pip install -r requirements.txt
+```
 
-  To initialize the digital twin and render the Arabidopsis model with default GS2 mapping:
+The `setuptools<81` pin in `requirements.txt` is required because VPython 7.6.5 imports `pkg_resources`, which setuptools removed in 81+. Drop the pin once VPython releases a version without that import.
 
-  python src/main.py --model arabidopsis --isoenzyme gln1.2
+## Quick Start
 
-  ## Usage
+The three modules run as `python -m` entry points:
 
-  Vivoptima functions by fusing three distinct data streams:
+```bash
+# 1. Parse the AlphaFold PDBs into DICOM-analog JSON metadata headers.
+python -m src.metadata.pdb_parser data/pdb/arabidopsis/AF-*.pdb
 
-  1. Structural Mapping: Parsing .pdb files to locate active sites within the GS monomer.
-  2. Metadata Tagging: Utilizing pydicom to wrap biological data in a clinical-grade header (e.g., mapping "Cultivar" to
-     PatientName).
-  3. Visual Simulation: Rendering the plant's vascular architecture in vpython to visualize nitrogen "sink" and "source"
-     dynamics.
+# 2. Compute a precision-application recommendation from dummy soil telemetry.
+python -m src.logic.nitrogen_need --regime limited
 
-  ## Dataset
+# 3. Open the 3D virtual plant in a browser (press Enter in the terminal to exit).
+python -m src.viz.plant_model
+```
 
-  - Protein Structures: AlphaFold models for Arabidopsis thaliana (Locus AT1G66200 and AT3G17820).
-  - Imaging Data: Synthetic multispectral hypercubes (generated in data/synthetic) simulating NIR and Red-Edge reflectance.
-  - Standards: Draft metadata dictionaries located in docs/astm/.
+Top-level orchestration is not wired up yet: `src/main.py` is still a placeholder.
 
-  ## References
+## Usage
 
-  - Jumper, J. et al. (2021). "Highly accurate protein structure prediction with AlphaFold." Nature.
-  - DICOM Standard: WG-21 (Computed Tomography) for spatial metadata logic.
-  - ASTM Committee E62 on Industrial Biotechnology.
-  - Arabidopsis GS1 Isoenzyme Research: Studies on the distinct roles of GLN1.2 vs. GLN1.3 in nitrogen loading.
+Vivoptima functions by fusing three distinct data streams:
 
-  ## Author
+1. Structural Mapping: Parsing .pdb files to locate active sites within the GS monomer.
+2. Metadata Tagging: Utilizing pydicom to wrap biological data in a clinical-grade header (e.g., mapping "Cultivar" to PatientName).
+3. Visual Simulation: Rendering the plant's vascular architecture in vpython to visualize nitrogen "sink" and "source" dynamics.
 
-  Christopher D. Cocchiaraley
+## Dataset
+
+- Protein Structures: AlphaFold models for Arabidopsis thaliana (Locus AT1G66200 and AT3G17820).
+- Imaging Data: Synthetic multispectral hypercubes (generated in data/synthetic) simulating NIR and Red-Edge reflectance.
+- Standards: Draft metadata dictionaries located in docs/astm/.
+
+## References
+
+- Jumper, J. et al. (2021). "Highly accurate protein structure prediction with AlphaFold." Nature.
+- DICOM Standard: WG-21 (Computed Tomography) for spatial metadata logic.
+- ASTM Committee E62 on Industrial Biotechnology.
+- Arabidopsis GS1 Isoenzyme Research: Studies on the distinct roles of GLN1.2 vs. GLN1.3 in nitrogen loading.
+
+## Author
+
+Christopher D. Cocchiaraley
