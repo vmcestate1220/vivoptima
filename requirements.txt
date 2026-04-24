@@ -1,0 +1,9 @@
+# Core runtime deps for src/metadata, src/viz, src/logic.
+# Versions mirror what's installed in ./vivoptima/ (the committed venv).
+biopython==1.87
+numpy==2.4.4
+vpython==7.6.5
+
+# pkg_resources was removed in setuptools 81; vpython 7.6.5 still imports it.
+# Drop this pin once a vpython release without the pkg_resources import is used.
+setuptools<81
